@@ -1,0 +1,10 @@
+[Unit]
+Description=Claude-RTL: re-apply the RTL patch after a Claude Desktop update (claude-rtl-kit)
+
+[Service]
+Type=oneshot
+# systemd --user starts with a bare PATH; install.sh puts the real Node directory first.
+Environment=PATH=__PATH__
+ExecStart=/bin/bash __WATCH_SH__
+StandardOutput=append:__LOG__
+StandardError=append:__LOG__

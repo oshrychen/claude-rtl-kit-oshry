@@ -1,0 +1,28 @@
+# Template. install.sh fills in __DEST__ and __WMCLASS__ and installs this as
+# ~/.local/share/applications/<desktopName>.desktop, where <desktopName> is the app_id
+# patch.sh gives the copy — the file name and StartupWMClass must both match it, or
+# GNOME cannot associate the running window with this entry (no "running" dot).
+[Desktop Entry]
+Name=Claude-RTL
+Comment=Claude Desktop with Hebrew/Arabic right-to-left (claude-rtl-kit)
+GenericName=AI Assistant
+Keywords=AI;Chat;Assistant;Claude;Code;LLM;RTL;Hebrew;
+Exec=__DEST__/claude-desktop %U
+TryExec=__DEST__/claude-desktop
+Icon=claude-desktop
+Type=Application
+StartupNotify=true
+StartupWMClass=__WMCLASS__
+SingleMainWindow=true
+Categories=Utility;Development;
+MimeType=x-scheme-handler/claude;
+Actions=NewChat;NewCode;
+X-Claude-RTL-Kit=true
+
+[Desktop Action NewChat]
+Name=New Chat
+Exec=__DEST__/claude-desktop "claude://claude.ai/new?surface=chat&source=desktop_action"
+
+[Desktop Action NewCode]
+Name=New Claude Code Session
+Exec=__DEST__/claude-desktop "claude://code/new?source=desktop_action"

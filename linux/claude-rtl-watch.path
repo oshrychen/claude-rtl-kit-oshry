@@ -1,0 +1,11 @@
+[Unit]
+Description=Claude-RTL: watch /usr/lib/claude-desktop for updates (claude-rtl-kit)
+
+[Path]
+PathChanged=/usr/lib/claude-desktop/resources/app.asar
+PathChanged=/usr/lib/claude-desktop/claude-desktop
+PathChanged=/usr/lib/claude-desktop/version
+Unit=claude-rtl-watch.service
+
+[Install]
+WantedBy=default.target
