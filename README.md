@@ -2,10 +2,15 @@
 
 **[English below](#english)**
 
-ב־Claude Desktop העברית לא תמיד מוצגת נכון: **ההודעות שלך** מתערבבות כשיש בהן מילה באנגלית
-או לינק, וגם בתשובות של Claude פסקה שמתחילה באנגלית מיושרת לשמאל, קוד ונתיבים בתוך משפט
-בעברית נשברים, ובטאב Code הכל מיושר לשמאל. הערכה הזו מתקנת את כל זה. אחרי ההתקנה יש לך אפליקציה בשם **Claude-RTL**, זהה לרגילה,
-עם אותו חשבון ואותן שיחות, רק שהעברית בה מיושרת לימין כמו שצריך.
+פתרון מלא לעברית וערבית ב־Claude Desktop, ב־Mac וב־Linux. אחרי ההתקנה יש לך אפליקציה בשם
+**Claude-RTL**, זהה לרגילה, עם אותו חשבון ואותן שיחות, שבה כל הטקסט מוצג בכיוון הנכון:
+
+- **התשובות של Claude**: פסקאות, כותרות, רשימות, ציטוטים וטבלאות מיושרים לימין לפי התוכן,
+  גם כשמשפט מתחיל באנגלית. קוד, נתיבים ונוסחאות בתוך משפט בעברית נשארים שלמים משמאל לימין.
+- **ההודעות שלך**: מה שאתה כותב מוצג נכון, כולל משפטים מעורבים עברית־אנגלית, לינקים וסימני פיסוק,
+  וגם תיבת הכתיבה עצמה.
+- **טאב Code** (Claude Code בתוך האפליקציה): גם התשובות וגם ההודעות שלך, לא רק הצ׳אט הרגיל.
+- **מתעדכן לבד**: אחרי כל עדכון של Claude העותק נבנה מחדש ברקע.
 
 עובד על **Mac** ועל **Linux** (Ubuntu / Debian). ה־Claude המקורי לא משתנה, ואפשר להסיר הכל בפקודה אחת.
 
@@ -81,12 +86,18 @@ bash linux/install.sh      # Linux
 <a id="english"></a>
 # Claude-RTL — Hebrew & Arabic right-to-left for Claude Desktop
 
-Claude Desktop does not always render Hebrew or Arabic correctly: **your messages** get
-scrambled when they contain an English word or a link, and in Claude's answers a paragraph
-that starts with English is left-aligned, inline code and paths inside an RTL sentence
-break, and the Code tab is left-aligned throughout. This kit fixes all of that. After installing you have an app called
-**Claude-RTL**, identical to the regular one (same login, same chats), with RTL text laid out
-correctly.
+A complete right-to-left fix for Claude Desktop on macOS and Linux. After installing you
+have an app called **Claude-RTL**, identical to the regular one (same login, same chats), in
+which every piece of text runs in the right direction:
+
+- **Claude's answers**: paragraphs, headings, lists, quotes and tables follow their content,
+  even when a sentence opens with English. Code, paths and math inside an RTL sentence stay
+  intact and left-to-right.
+- **Your messages**: what you type renders correctly, including mixed Hebrew/Arabic and
+  English, links and punctuation, and the input box itself.
+- **The Code tab** (Claude Code inside the app): both the answers and your messages, not
+  only the regular chat.
+- **Keeps itself current**: after every Claude update the copy is rebuilt in the background.
 
 Works on **macOS** and **Linux** (Ubuntu / Debian). The original Claude is never modified, and
 everything can be removed with one command.
