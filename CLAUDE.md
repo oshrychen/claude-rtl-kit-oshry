@@ -6,6 +6,13 @@ job yourself, then explain the result to the user in the language they write in 
 Hebrew). First find out which OS you are on (`uname -s`): Darwin → **macOS** section,
 Linux → **Linux** section.
 
+**If the user gave you the repository URL instead of opening the repo folder** (the README
+tells people to do exactly that), start by getting the repo onto the machine:
+`git clone https://github.com/oshrychen/claude-rtl-kit-oshry.git ~/claude-rtl-kit-oshry`
+(or `git -C ~/claude-rtl-kit-oshry pull` if it already exists), then work from that folder.
+Everything below assumes you are inside it. The installers must stay at a permanent path,
+because the update watcher points back at them — never run them from a temp directory.
+
 ## What this kit is
 
 Claude Desktop's chat is loaded from claude.ai, which has no RTL handling for messages
