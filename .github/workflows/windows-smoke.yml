@@ -1,0 +1,100 @@
+name: windows-smoke
+
+# Runs the kit's Windows (Squirrel) path on a real Claude Desktop package without installing
+# Claude: downloads the current MSIX, unpacks it, lays its contents out the way the Squirrel
+# installer does (%LOCALAPPDATA%\AnthropicClaude\app-<ver>\), runs windows\install.ps1 -CI and
+# checks the result. Nothing here needs a Claude login. It proves the mechanics, not the pixels.
+
+on:
+  push:
+    paths: ['windows/**', 'source/**', 'patches/**', '.github/workflows/windows-smoke.yml']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  squirrel-path:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download the current Claude Desktop package (MSIX)
+        shell: pwsh
+        run: |
+          $url = 'https://claude.ai/api/desktop/win32/x64/msix/latest/redirect'
+          $out = Join-Path $env:RUNNER_TEMP 'claude.msix'
+          try {
+            Invoke-WebRequest -Uri $url -OutFile $out -UserAgent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' -MaximumRedirection 10
+          } catch { Write-Host "download failed: $($_.Exception.Message)"; exit 1 }
+          $len = (Get-Item $out).Length
+          Write-Host "downloaded $([math]::Round($len/1MB)) MB"
+          if ($len -lt 50MB) { Get-Content $out -TotalCount 5; throw "too small to be the package" }
+          Copy-Item $out (Join-Path $env:RUNNER_TEMP 'claude.zip')
+          Expand-Archive -Path (Join-Path $env:RUNNER_TEMP 'claude.zip') -DestinationPath (Join-Path $env:RUNNER_TEMP 'msix') -Force
+          Get-ChildItem (Join-Path $env:RUNNER_TEMP 'msix') | Select-Object Name | Format-Table -AutoSize
+
+      - name: Lay the package out like a Squirrel install
+        shell: pwsh
+        run: |
+          $msix = Join-Path $env:RUNNER_TEMP 'msix'
+          $app = Get-ChildItem $msix -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'claude.exe') } | Select-Object -First 1
+          if (-not $app) { $app = Get-Item $msix }
+          if (-not (Test-Path (Join-Path $app.FullName 'claude.exe'))) { throw "claude.exe not found in the package" }
+          $ver = (Get-Item (Join-Path $app.FullName 'claude.exe')).VersionInfo.ProductVersion
+          if (-not $ver) { $ver = '0.0.0' }
+          $ver = ($ver -split '[^0-9.]')[0]
+          $dest = Join-Path $env:LOCALAPPDATA "AnthropicClaude\app-$ver"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item (Join-Path $app.FullName 'claude.exe') $dest
+          Copy-Item (Join-Path $app.FullName '*.dll') $dest -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $app.FullName 'resources') $dest -Recurse
+          Write-Host "layout: $dest"
+          Get-ChildItem (Join-Path $dest 'resources') | Select-Object Name, Length | Format-Table -AutoSize
+          npx --yes @electron/fuses read --app (Join-Path $dest 'claude.exe')
+
+      - name: Kit --Check
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -Check
+
+      - name: Kit install (-CI)
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -CI
+
+      - name: Kit --Status and assertions
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -Status
+          $app = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AnthropicClaude') -Directory -Filter 'app-*' | Select-Object -First 1
+          $asar = Join-Path $app.FullName 'resources\app.asar'
+          $bytes = [IO.File]::ReadAllBytes($asar)
+          $text = [Text.Encoding]::GetEncoding('ISO-8859-1').GetString($bytes)
+          $payloads = ([regex]::Matches($text, 'claude-rtl-payload-v1')).Count
+          $fix = ([regex]::Matches($text, 'epitaxy-user-turn')).Count
+          Write-Host "payload markers: $payloads, code-tab fix markers: $fix"
+          if ($payloads -lt 1) { throw "payload missing" }
+          if ($fix -lt 1) { throw "code-tab fix missing" }
+          if (-not (Test-Path "$asar.crtl-bak")) { throw "backup missing" }
+          $fuse = npx --yes @electron/fuses read --app (Join-Path $app.FullName 'claude.exe') | Out-String
+          Write-Host $fuse
+          if ($fuse -notmatch 'EnableEmbeddedAsarIntegrityValidation is Disabled') { throw "fuse not flipped" }
+
+      - name: Idempotency (second run must be a no-op)
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -CI
+
+      - name: Uninstall restores the pristine files
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -Uninstall
+          $app = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'AnthropicClaude') -Directory -Filter 'app-*' | Select-Object -First 1
+          $asar = Join-Path $app.FullName 'resources\app.asar'
+          $text = [Text.Encoding]::GetEncoding('ISO-8859-1').GetString([IO.File]::ReadAllBytes($asar))
+          if ($text.Contains('claude-rtl-payload-v1')) { throw "payload still present after uninstall" }
+          $exe = Join-Path $app.FullName 'claude.exe'
+          $h1 = (Get-FileHash $exe -Algorithm SHA256).Hash
+          $h2 = (Get-FileHash "$exe.crtl-bak" -Algorithm SHA256).Hash
+          if ($h1 -ne $h2) { throw "claude.exe not byte-identical to the pristine backup after uninstall" }
+          Write-Host "uninstall OK (claude.exe restored byte-for-byte)"

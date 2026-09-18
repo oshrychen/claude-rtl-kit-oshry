@@ -36,6 +36,8 @@ Layout:
 - `mac/install.sh` — macOS installer (idempotent). `mac/swap-when-quit.sh` — helper.
 - `linux/` — Linux installer (`install.sh`, `patch.sh`, `watch.sh`, `swap-when-quit.sh`,
   templates) + `README.md`. `PROMPT.md` is the prompt it was built from, kept for the record.
+- `windows/` — Windows installer (beta): `install.ps1` wraps the upstream scripts in
+  `source/claude-desktop-rtl/desktop/windows/`. `README.md` has the Squirrel/MSIX details.
 - `source/claude-desktop-rtl` — the patch engine + payload builder (shared by both OSes).
 - `patches/` — extra fixes on top of upstream, as patch files.
 
@@ -161,6 +163,30 @@ then run `bash linux/install.sh` again. Turn the watcher off with
 
 `bash linux/install.sh --uninstall` removes the copy, the launcher, the menu entry and the
 watcher, and unpins it from the dock. The apt package is never touched.
+
+## Windows — what to do (beta)
+
+Read `windows/README.md` first: it explains the two install kinds (Squirrel vs MSIX) and why
+Windows patches the install in place instead of building a copy. Use Windows PowerShell:
+
+1. `powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -Check` and read the output.
+2. Fix what it asks for: Node 18+ (`winget install OpenJS.NodeJS.LTS` or https://nodejs.org — ask
+   the user before installing). A foreign patch inside `app.asar` (shraga100 etc.) must be
+   restored with that project's backup or by reinstalling Claude from https://claude.com/download;
+   the kit refuses to patch on top of it.
+3. **Squirrel** install (`%LOCALAPPDATA%\AnthropicClaude\app-*`): run
+   `powershell -ExecutionPolicy Bypass -File .\windows\install.ps1`. If Claude Desktop is running
+   (you are inside it), the kit does not stop it: it installs the watcher and tells the user to
+   close Claude; the watcher applies RTL within about a minute and the user reopens Claude.
+   Never pass `-StopClaude` from inside Claude's own Code tab.
+4. **MSIX** install (Store style, `C:\Program Files\WindowsApps\Claude_*`): the kit prints an
+   explanation and the exact elevated command (`install.ps1 -AcceptMsixChanges`). Relay it to the
+   user in plain words, including that it re-signs `claude.exe` and adds a self-signed certificate
+   to the machine Trusted Root store, and that the upstream one-click installer is the alternative.
+   Do not run it yourself unless the user explicitly agrees and the shell is elevated.
+5. Verify with `install.ps1 -Status` (payload true, code-tab fix true, watcher true), then ask the
+   user to check visually (same list as macOS) and to report back — Windows is beta and every
+   confirmed run is useful. Undo: `install.ps1 -Uninstall`.
 
 ## Updating the patch itself
 

@@ -2,7 +2,7 @@
 
 **[English below](#english)**
 
-פתרון מלא לעברית וערבית ב־Claude Desktop, ב־Mac וב־Linux. אחרי ההתקנה יש לך אפליקציה בשם
+פתרון מלא לעברית וערבית ב־Claude Desktop, ב־Mac, ב־Linux וב־Windows (בטא). אחרי ההתקנה יש לך אפליקציה בשם
 **Claude-RTL**, זהה לרגילה, עם אותו חשבון ואותן שיחות, שבה כל הטקסט מוצג בכיוון הנכון:
 
 - **התשובות של Claude**: פסקאות, כותרות, רשימות, ציטוטים וטבלאות מיושרים לימין לפי התוכן,
@@ -14,7 +14,8 @@
   ב־Claude המקורי, ומשימת הרקע בונה מיד את Claude-RTL מחדש מהגרסה החדשה ושולחת התראה. אתה רק
   פותח אותו שוב. נבדק בפועל עם העדכון 2.2553.0 → 2.2553.1.
 
-עובד על **Mac** ועל **Linux** (Ubuntu / Debian). ה־Claude המקורי לא משתנה, ואפשר להסיר הכל בפקודה אחת.
+עובד על **Mac** ועל **Linux** (Ubuntu / Debian), שם ה־Claude המקורי לא משתנה ואפשר להסיר הכל בפקודה אחת.
+ב־**Windows** (בטא) הפאטצ׳ מוחל על ההתקנה עצמה עם גיבוי, כי ל־Windows אין דרך להריץ עותק. פרטים ב־`windows/README.md`.
 
 ## לפני ואחרי
 
@@ -51,6 +52,7 @@ git clone https://github.com/oshrychen/claude-rtl-kit-oshry.git ~/claude-rtl-kit
 cd ~/claude-rtl-kit-oshry
 bash mac/install.sh        # Mac
 bash linux/install.sh      # Linux
+powershell -ExecutionPolicy Bypass -File .\windows\install.ps1   # Windows (בטא)
 ```
 
 לכל מתקין יש גם `--check` (בדיקה בלי שינויים), `--status` ו־`--uninstall`.
@@ -58,7 +60,7 @@ bash linux/install.sh      # Linux
 
 ## מה צריך שיהיה במחשב
 
-- Claude Desktop הרשמי. ב־Mac מ־claude.com, ב־Linux החבילה `claude-desktop` מה־apt של Anthropic.
+- Claude Desktop הרשמי. ב־Mac וב־Windows מ־claude.com, ב־Linux החבילה `claude-desktop` מה־apt של Anthropic.
 - **Node.js 18 ומעלה** ו־git. ב־Mac גם Xcode Command Line Tools. אם משהו חסר, Claude יגיד לך בדיוק מה ואיך.
 - הטאב Code ב־Claude Desktop זמין בתוכניות שכוללות את Claude Code. אם אין לך, ההתקנה הידנית למעלה עושה את אותו דבר.
 
@@ -66,7 +68,7 @@ bash linux/install.sh      # Linux
 
 | עושה | לא עושה |
 |---|---|
-| בונה **עותק** של Claude עם התיקון: ב־Mac `~/Applications/Claude-RTL.app`, ב־Linux `~/.local/lib/claude-rtl` | לא נוגע ב־Claude המקורי, לא בקבצי מערכת, לא צריך sudo |
+| בונה **עותק** של Claude עם התיקון: ב־Mac `~/Applications/Claude-RTL.app`, ב־Linux `~/.local/lib/claude-rtl`. ב־Windows: מתקן את ההתקנה עצמה אחרי גיבוי | ב־Mac וב־Linux לא נוגע ב־Claude המקורי, לא בקבצי מערכת, לא צריך sudo |
 | מתקין משימת רקע קטנה שבונה את העותק מחדש אחרי עדכון של Claude (Mac: LaunchAgent, Linux: systemd user unit) | לא שולח שום דבר לשום מקום, אין טלמטריה, אין רשת חוץ מהורדת כלי הבנייה |
 | משנה רק את **הכיוון** של הטקסט על המסך | לא משנה את הטקסט עצמו, לא מוסיף תווים נסתרים |
 
@@ -98,7 +100,7 @@ bash linux/install.sh      # Linux
 <a id="english"></a>
 # Claude-RTL — Hebrew & Arabic right-to-left for Claude Desktop
 
-A complete right-to-left fix for Claude Desktop on macOS and Linux. After installing you
+A complete right-to-left fix for Claude Desktop on macOS, Linux and Windows (beta). After installing you
 have an app called **Claude-RTL**, identical to the regular one (same login, same chats), in
 which every piece of text runs in the right direction:
 
@@ -114,8 +116,9 @@ which every piece of text runs in the right direction:
   Claude-RTL from the new version and sends a notification. You just reopen it. Verified live
   on the 2.2553.0 → 2.2553.1 update.
 
-Works on **macOS** and **Linux** (Ubuntu / Debian). The original Claude is never modified, and
-everything can be removed with one command.
+Works on **macOS** and **Linux** (Ubuntu / Debian), where the original Claude is never modified
+and everything can be removed with one command. On **Windows** (beta) the patch is applied to the
+install itself with a backup, because Windows has no way to run a copy. Details in `windows/README.md`.
 
 ## Before and after
 
@@ -156,6 +159,7 @@ git clone https://github.com/oshrychen/claude-rtl-kit-oshry.git ~/claude-rtl-kit
 cd ~/claude-rtl-kit-oshry
 bash mac/install.sh        # macOS
 bash linux/install.sh      # Linux
+powershell -ExecutionPolicy Bypass -File .\windows\install.ps1   # Windows (beta)
 ```
 
 Each installer also has `--check` (no changes), `--status` and `--uninstall`.
@@ -163,8 +167,8 @@ Each installer also has `--check` (no changes), `--status` and `--uninstall`.
 
 ## Requirements
 
-- Official Claude Desktop: from claude.com on macOS, the `claude-desktop` package from
-  Anthropic's apt repo on Linux.
+- Official Claude Desktop: from claude.com on macOS and Windows, the `claude-desktop` package
+  from Anthropic's apt repo on Linux.
 - **Node.js 18+** and git. On macOS also the Xcode Command Line Tools. Claude tells you exactly
   what is missing and how to install it.
 - The Code tab in Claude Desktop needs a plan that includes Claude Code. Without it, the
@@ -174,7 +178,7 @@ Each installer also has `--check` (no changes), `--status` and `--uninstall`.
 
 | Does | Doesn't |
 |---|---|
-| Builds a **copy** of Claude with the fix: macOS `~/Applications/Claude-RTL.app`, Linux `~/.local/lib/claude-rtl` | Never touches the original Claude or system files; no sudo |
+| Builds a **copy** of Claude with the fix: macOS `~/Applications/Claude-RTL.app`, Linux `~/.local/lib/claude-rtl`. Windows: patches the install itself after a backup | On macOS and Linux never touches the original Claude or system files; no sudo |
 | Installs a small background task that rebuilds the copy after a Claude update (macOS LaunchAgent, Linux systemd user unit) | Sends nothing anywhere: no telemetry, no network except downloading the build tools |
 | Changes only the **direction** of text on screen | Never edits the text itself, never inserts hidden characters |
 
