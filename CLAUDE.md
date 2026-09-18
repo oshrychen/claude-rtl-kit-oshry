@@ -15,9 +15,11 @@ because the update watcher points back at them — never run them from a temp di
 
 ## What this kit is
 
-Claude Desktop's chat is loaded from claude.ai, which has no RTL handling for messages
-(verified 2026-09-18: no `dir` attribute or bidi CSS on message roots; only the Code/Cowork
-tab UI uses `dir="auto"`). This kit installs the community patch
+Claude Desktop's chat is loaded from claude.ai. As of 2026-09-18 claude.ai's markdown renderer
+sets `dir` per block on **assistant** answers (first-strong-character detection on the first
+80 characters of each paragraph/heading/list/table), so answers already look right-aligned.
+It does nothing for the user's own messages, the composer, the Code tab, inline code/math
+inside RTL text, or mixed-language lines — those still scramble. This kit installs the community patch
 **liorshaya/claude-desktop-rtl v0.2.21** plus one extra fix (their open PR #3, which covers the
 Code tab's user turns). The source is vendored as plain files in `source/claude-desktop-rtl`
 (no git metadata); `VERSIONS.md` records the upstream commit and the PR commit, and the extra

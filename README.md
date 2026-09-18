@@ -2,9 +2,9 @@
 
 **[English below](#english)**
 
-אפליקציית Claude Desktop מציגה עברית וערבית משמאל לימין: משפטים שיש בהם גם אנגלית
-מתערבבים, הנקודה בסוף המשפט קופצת לצד הלא נכון, ורשימות וטבלאות מיושרות לשמאל.
-הערכה הזו מתקנת את זה. אחרי ההתקנה יש לך אפליקציה בשם **Claude-RTL**, זהה לרגילה,
+ב־Claude Desktop העברית לא תמיד מוצגת נכון: **ההודעות שלך** מתערבבות כשיש בהן מילה באנגלית
+או לינק, וגם בתשובות של Claude פסקה שמתחילה באנגלית מיושרת לשמאל, קוד ונתיבים בתוך משפט
+בעברית נשברים, ובטאב Code הכל מיושר לשמאל. הערכה הזו מתקנת את כל זה. אחרי ההתקנה יש לך אפליקציה בשם **Claude-RTL**, זהה לרגילה,
 עם אותו חשבון ואותן שיחות, רק שהעברית בה מיושרת לימין כמו שצריך.
 
 עובד על **Mac** ועל **Linux** (Ubuntu / Debian). ה־Claude המקורי לא משתנה, ואפשר להסיר הכל בפקודה אחת.
@@ -81,9 +81,10 @@ bash linux/install.sh      # Linux
 <a id="english"></a>
 # Claude-RTL — Hebrew & Arabic right-to-left for Claude Desktop
 
-Claude Desktop renders Hebrew, Arabic and other RTL languages left-to-right: mixed sentences
-get scrambled around English words, the final period lands on the wrong side, and lists and
-tables are left-aligned. This kit fixes that. After installing you have an app called
+Claude Desktop does not always render Hebrew or Arabic correctly: **your messages** get
+scrambled when they contain an English word or a link, and in Claude's answers a paragraph
+that starts with English is left-aligned, inline code and paths inside an RTL sentence
+break, and the Code tab is left-aligned throughout. This kit fixes all of that. After installing you have an app called
 **Claude-RTL**, identical to the regular one (same login, same chats), with RTL text laid out
 correctly.
 
@@ -153,9 +154,12 @@ original Claude is left exactly as it was.
 
 ## How it works, briefly
 
-The chat inside Claude Desktop is the claude.ai web app, which sets no text direction on
-messages. The patch injects a small script into the app's renderer that detects the direction
-of each paragraph, list item and table cell and sets it, keeping code and math left-to-right.
+The chat inside Claude Desktop is the claude.ai web app. It already picks a direction for each
+block of Claude's answers (from the first strong character), but it does nothing for your own
+messages, the input box, the Code tab, inline code or math inside RTL text, or mixed-language
+lines. The patch injects a small script into the app's renderer that covers all of those: it
+detects the direction of every paragraph, list item and table cell, keeps code and math
+left-to-right, and leaves what claude.ai already handles alone.
 The installer unpacks the app's `app.asar`, adds the script to the renderer bundles, repacks
 it into a separate copy of the app, and sets up a watcher that redoes this after updates.
 Details: `CLAUDE.md` (the runbook Claude follows), `linux/README.md` (Linux specifics),
