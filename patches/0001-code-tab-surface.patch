@@ -1,0 +1,212 @@
+From 04a9f2f68336e0a8c42da1346e6087abdc87949c Mon Sep 17 00:00:00 2001
+From: Asaf Benatia <benatia.asaf@gmail.com>
+Date: Sat, 29 Aug 2026 09:48:15 +0300
+Subject: [PATCH] feat(dom): cover Claude Code's surface inside Claude Desktop
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Claude Code renders into `.epitaxy-markdown`, and its user turn into
+`.epitaxy-user-turn`. Neither was in the surface map, so that panel got no
+treatment at all: a Hebrew answer kept its list gutter and quote bar on the
+left, and a Hebrew user message inherited base LTR and came out with its runs
+scrambled — while the classic chat beside it rendered correctly.
+
+Same shape as the progressive-markdown gap: the engine is untouched, the
+surface is simply reached now.
+
+- dom/surfaces.js: both roots join `messageRoot`, so every JS pass — including
+  the Latin-opener override (§3.2/§8.K) — runs there too.
+- dom/apply.css: both join the `:where()` anchor lists, since per-leaf
+  `plaintext` is the sole base-direction mechanism for prose and a JS-only fix
+  would leave the surface bare.
+- The user turn holds its text in a `.whitespace-pre-wrap` div rather than a
+  `<p>`, so the tag-listed leaf rule never reaches it; it gets one scoped rule.
+
+Tests pin the surface in both directions, which is what separates this from
+"any RTL character wins": a Latin-opening majority-Hebrew block is corrected,
+a majority-English block quoting Hebrew is left alone, and a Hebrew-first block
+is left to CSS.
+
+606 tests pass (599 existing + 7 added).
+---
+ dom/__tests__/epitaxy-surface.test.js | 89 +++++++++++++++++++++++++++
+ dom/apply.css                         | 21 +++++--
+ dom/surfaces.js                       |  5 +-
+ 3 files changed, 108 insertions(+), 7 deletions(-)
+ create mode 100644 dom/__tests__/epitaxy-surface.test.js
+
+diff --git a/dom/__tests__/epitaxy-surface.test.js b/dom/__tests__/epitaxy-surface.test.js
+new file mode 100644
+index 0000000..1622e74
+--- /dev/null
++++ b/dom/__tests__/epitaxy-surface.test.js
+@@ -0,0 +1,89 @@
++'use strict';
++// dom/__tests__/epitaxy-surface.test.js — the CLAUDE CODE surface gap (§6).
++//
++// Claude Code inside Claude Desktop does not use the classic chat classes. It renders
++// assistant markdown into `.epitaxy-markdown` and the user's own turn into
++// `.epitaxy-user-turn`, neither of which was in the surface map — so that whole panel got
++// no treatment at all: a Hebrew answer kept its list gutter and quote bar on the left, and
++// a Hebrew user message inherited base LTR and came out with its runs scrambled.
++//
++// Same shape of fix as the progressive-markdown gap: the engine is untouched, the surface
++// is simply reached now. These pin that, so a future refactor cannot silently drop it.
++
++const { test } = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const { loadInternals, el } = require('./harness.js');
++
++const I = loadInternals();
++
++const markdownHost = (children) => el('div', { class: 'epitaxy-markdown' }, children);
++const userTurnHost = (children) => el('div', { class: 'epitaxy-user-turn' }, children);
++
++// ---------------------------------------------------------------------------
++// 1. The surface map reaches both roots.
++// ---------------------------------------------------------------------------
++
++test('SELECTORS.messageRoot matches an .epitaxy-markdown root', () => {
++  assert.equal(markdownHost([]).matches(I.SELECTORS.messageRoot), true);
++});
++
++test('SELECTORS.messageRoot matches an .epitaxy-user-turn root', () => {
++  assert.equal(userTurnHost([]).matches(I.SELECTORS.messageRoot), true);
++});
++
++// ---------------------------------------------------------------------------
++// 2. The stylesheet anchors carry it too — CSS is the sole base-direction
++//    mechanism for prose (§3.2), so a JS-only fix would leave the surface bare.
++// ---------------------------------------------------------------------------
++
++test('apply.css: every :where() anchor list with .standard-markdown also carries the epitaxy roots', () => {
++  const css = fs.readFileSync(path.join(__dirname, '..', 'apply.css'), 'utf8');
++  const groups = [...css.matchAll(/:where\(([^)]*)\)/g)].map((m) => m[1]);
++  const anchored = groups.filter((g) => g.includes('.standard-markdown'));
++  assert.ok(anchored.length >= 6, `expected the anchor groups, found ${anchored.length}`);
++  for (const g of anchored) {
++    const shown = g.replace(/\s+/g, ' ').trim();
++    assert.ok(g.includes('.epitaxy-markdown'), `anchor group missing .epitaxy-markdown: ${shown}`);
++    assert.ok(g.includes('.epitaxy-user-turn'), `anchor group missing .epitaxy-user-turn: ${shown}`);
++  }
++});
++
++test('apply.css: the user turn holds its text in a div, so it needs its own leaf rule', () => {
++  // `.epitaxy-user-turn` wraps its message in `.whitespace-pre-wrap`, not a <p>, so the
++  // tag-listed leaf rule never reaches it and the anchor alone is not enough.
++  const css = fs.readFileSync(path.join(__dirname, '..', 'apply.css'), 'utf8');
++  assert.ok(
++    /\.epitaxy-user-turn\s+\.whitespace-pre-wrap\s*\{[^}]*unicode-bidi:\s*plaintext/.test(css),
++    'expected a plaintext rule for .epitaxy-user-turn .whitespace-pre-wrap'
++  );
++});
++
++// ---------------------------------------------------------------------------
++// 3. The Latin-opener override (§3.2/§8.K) now applies here as well — in both
++//    directions, which is what separates it from "any RTL character wins".
++// ---------------------------------------------------------------------------
++
++test('a Latin-opening, majority-Hebrew paragraph under epitaxy gets the override', () => {
++  // The case first-strong gets wrong in practice: the block opens with a Latin token, so
++  // plaintext would render the whole Hebrew paragraph base-LTR and strand its full stop.
++  const p = el('p', null, ['PR #7749 נסגר בלי מיזוג, צריך לפתוח מחדש.']);
++  markdownHost([p]);
++  I.processProseDir(p);
++  assert.equal(p.getAttribute('dir'), 'rtl', 'majority-RTL block is corrected to rtl');
++});
++
++test('a majority-English paragraph quoting Hebrew under epitaxy is left alone', () => {
++  const p = el('p', null, ['The word שלום means peace in Hebrew.']);
++  markdownHost([p]);
++  I.processProseDir(p);
++  assert.equal(p.getAttribute('dir'), null, 'majority-LTR English must not flip');
++});
++
++test('a Hebrew-first paragraph under epitaxy is left to CSS plaintext', () => {
++  const p = el('p', null, ['שלום, בדקתי את הקוד והכול תקין.']);
++  markdownHost([p]);
++  I.processProseDir(p);
++  assert.equal(p.getAttribute('dir'), null, 'first-strong already resolves this one');
++});
+diff --git a/dom/apply.css b/dom/apply.css
+index 70e3d3b..0919368 100644
+--- a/dom/apply.css
++++ b/dom/apply.css
+@@ -19,14 +19,23 @@
+  * fights us on (unicode-bidi, text-align) — the narrowest reliable override per §4. The
+  * `:where()` root keeps specificity contributed by the container at 0. */
+ 
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"])
+   :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, dt, dd, figcaption, caption, td, th) {
+   unicode-bidi: plaintext !important;
+   text-align: start !important;
+ }
+ 
++/* Claude Code's user turn holds its text in a `.whitespace-pre-wrap` div rather than a
++ * <p>, so the leaf rule above — which lists block TAGS — never reaches it and a Hebrew
++ * message inherits base LTR: every run is laid out left-to-right and a mixed sentence
++ * comes out scrambled. Scoped to that text block, never the flex wrappers around it. */
++.epitaxy-user-turn .whitespace-pre-wrap {
++  unicode-bidi: plaintext !important;
++  text-align: start !important;
++}
++
+ /* Long unbreakable LTR tokens (URLs) inside RTL must not blow out the bubble. */
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"])
+   :is(p, li) {
+   overflow-wrap: anywhere;
+ }
+@@ -129,16 +138,16 @@ table[dir="rtl"] { direction: rtl; }
+  * LAYER 2b — per-COLUMN alignment: JS stamps each cell with its column's majority
+  *   direction (data-rtl-col); the column hugs that edge — Hebrew columns right,
+  *   English/number columns left — for CLEAN columns regardless of column order. */
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
+   :is(td, th) {
+   unicode-bidi: plaintext !important;
+   text-align: start !important; /* provisional until JS stamps the per-column edge */
+ }
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
+   :is(td, th)[data-rtl-col="rtl"] {
+   text-align: right !important;
+ }
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
+   :is(td, th)[data-rtl-col="ltr"] {
+   text-align: left !important;
+ }
+@@ -160,7 +169,7 @@ blockquote[dir="rtl"] {
+  * (pl-8 = 2rem) which dir="rtl" can't flip, so deeper RTL levels don't step inward from
+  * the right. Move that indent to the right. Only nested RTL lists; top-level + LTR keep
+  * Claude's spacing. */
+-:where(.prose, .standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
++:where(.prose, .standard-markdown, .epitaxy-markdown, .epitaxy-user-turn, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], [data-rtl-artifact])
+   :is(ul, ol) :is(ul, ol)[dir="rtl"] {
+   padding-left: 0 !important;
+   padding-right: 2rem !important;
+diff --git a/dom/surfaces.js b/dom/surfaces.js
+index b5ccd1e..6eeea10 100644
+--- a/dom/surfaces.js
++++ b/dom/surfaces.js
+@@ -13,8 +13,11 @@ const SELECTORS = {
+   // claude.ai renders `className: isStreaming ? "progressive-markdown" : "standard-markdown"`
+   // and swaps the class in place at stream end (an attribute-only mutation; the observer
+   // watches class for exactly that swap). `.prose` kept as a fallback for other surfaces.
++  // `.epitaxy-*` is Claude Code's renderer inside Claude Desktop — a separate surface
++  // from the classic chat, with its own class names. Listing it here is what makes every
++  // JS pass (including the Latin-opener override, §3.2/§8.K) reach it too.
+   messageRoot:
+-    '.standard-markdown, .progressive-markdown, .font-claude-response, .font-claude-message, [data-testid="user-message"], .prose',
++    '.standard-markdown, .progressive-markdown, .epitaxy-markdown, .epitaxy-user-turn, .font-claude-response, .font-claude-message, [data-testid="user-message"], .prose',
+   // The chat input (ProseMirror contenteditable) and the message-EDIT box. Editing reuses
+   // a contenteditable, so the composer selector covers it; textarea kept for safety.
+   composer: '[contenteditable="true"], div.ProseMirror[contenteditable]',
+-- 
+2.54.0 (Apple Git-157)
+

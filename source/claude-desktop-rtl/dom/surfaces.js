@@ -1,0 +1,128 @@
+'use strict';
+// dom/surfaces.js — surface coverage map (§6). The ONE place that knows claude.ai's DOM
+// shape, so adapting to a Claude UI change is a one-file edit (the P6 "adopt a new
+// version" runbook lives off this). DOM-touching but defensive: every query is scoped
+// and null-safe. No direction logic here — that's the engine.
+
+// Selectors are deliberately broad/redundant: Claude ships Tailwind `prose` plus
+// data-attributes that have been stable across versions. Tune here during the browser
+// pass if a surface is missed.
+const SELECTORS = {
+  // Streamed-response roots: where prose blocks live (claude.ai, verified DOM). We attach
+  // the observer per-root. `.progressive-markdown` is the SAME root WHILE IT STREAMS —
+  // claude.ai renders `className: isStreaming ? "progressive-markdown" : "standard-markdown"`
+  // and swaps the class in place at stream end (an attribute-only mutation; the observer
+  // watches class for exactly that swap). `.prose` kept as a fallback for other surfaces.
+  // `.epitaxy-*` is Claude Code's renderer inside Claude Desktop — a separate surface
+  // from the classic chat, with its own class names. Listing it here is what makes every
+  // JS pass (including the Latin-opener override, §3.2/§8.K) reach it too.
+  messageRoot:
+    '.standard-markdown, .progressive-markdown, .epitaxy-markdown, .epitaxy-user-turn, .font-claude-response, .font-claude-message, [data-testid="user-message"], .prose',
+  // The chat input (ProseMirror contenteditable) and the message-EDIT box. Editing reuses
+  // a contenteditable, so the composer selector covers it; textarea kept for safety.
+  composer: '[contenteditable="true"], div.ProseMirror[contenteditable]',
+  editBox: 'textarea',
+  // Inline islands the browser/CSS already isolates; listed for completeness/JS passes.
+  code: 'pre, code, .code-block__code',
+  math: '.katex, .katex-display, mjx-container, .MathJax, math',
+  table: 'table',
+  // Fenced blocks we test for "is this really code, or mis-fenced RTL text?" (§8.D).
+  codeBlock: 'pre',
+  // Leaf prose blocks the arrow-mirroring pass walks (only RTL ones get wrapped, §8.F).
+  // Includes prose-code blocks once they've been tagged data-rtl-text.
+  leafBlock:
+    'p, li, h1, h2, h3, h4, h5, h6, blockquote, dt, dd, figcaption, caption, td, th, pre[data-rtl-text]',
+  // Blocks with a direction-dependent DECORATION (list markers/indent, blockquote bar)
+  // get an explicit dir so the decoration lands on the content's side (§6).
+  dirBlock: 'ul, ol, li, blockquote',
+  // Any editable INPUT host: the chat composer AND the in-place message-EDIT box (both
+  // reuse a ProseMirror contenteditable; textarea kept for safety). Content-mutation
+  // passes must NEVER run inside one — ProseMirror reconciles its OWN DOM, so wrapping a
+  // signed number / arrow or flipping a list's dir there desyncs the editor and FREEZES
+  // typing (the "-5" composer bug). The ONLY thing we ever set on these is dir="auto"
+  // (sweepInputs, §5/§6).
+  editableHost: '[contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], .ProseMirror, textarea',
+  // Headings/paragraphs where CSS `plaintext` first-strong can misfire on a Latin/marker
+  // opener of a Hebrew block ("8c. בדיקה…", "React הוא…"); we override only then (§3.2/§8.K).
+  proseDir: 'p, h1, h2, h3, h4, h5, h6',
+  // The interactive "ask user a question" widget (claude.ai + Desktop): a React-managed
+  // popup — a question + numbered options + a free-text "Something else" input. Stable
+  // data-attr root; `askQuestion` (role=listbox) carries the question as its aria-label. We
+  // give the WHOLE widget a content-derived base direction from its question, exactly like a
+  // <table> takes dir from its cells (§3.2) — a Hebrew question reads RTL (badge → right,
+  // label right-aligned, nav → left, all via the flex `direction`); an English question stays
+  // LTR (§8.K, no blanket container flip). React owns this DOM, so we set ATTRIBUTES only and
+  // never inject spans into it (it's in `noInject`, below).
+  askWidget: '[data-ask-user-input-banner]',
+  askQuestion: '[role="listbox"]',
+  askOption: '[role="option"]',
+};
+
+// Span-injecting passes (relations/arrows/signed-numbers) must NEVER restructure these:
+//  • <style>/<script> hold CODE, not display text — injecting a <span> corrupts the sheet
+//    (observed: a data-rtl-relation span landed inside the ask-widget's @keyframes).
+//  • the composer / edit box and the React-managed ask-widget desync if we add child nodes
+//    (cf. SELECTORS.editableHost and the "-5" typing freeze).
+// Attribute-only passes (dir tagging) are unaffected; they have their own narrower guards.
+SELECTORS.noInject = 'style, script, ' + SELECTORS.askWidget + ', ' + SELECTORS.editableHost;
+
+function qsa(selector, root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return [];
+  return Array.prototype.slice.call(root.querySelectorAll(selector));
+}
+
+// All input surfaces that should carry dir="auto" (composer + edit boxes, §5/§6).
+function findInputs(root) {
+  return qsa(SELECTORS.composer, root).concat(qsa(SELECTORS.editBox, root));
+}
+
+function findMessageRoots(root) {
+  return qsa(SELECTORS.messageRoot, root);
+}
+
+function findTables(root) {
+  return qsa(SELECTORS.table, root);
+}
+
+function findCodeBlocks(root) {
+  return qsa(SELECTORS.codeBlock, root);
+}
+
+function findLeafBlocks(root) {
+  return qsa(SELECTORS.leafBlock, root);
+}
+
+function findDirBlocks(root) {
+  return qsa(SELECTORS.dirBlock, root);
+}
+
+function findProseDirBlocks(root) {
+  return qsa(SELECTORS.proseDir, root);
+}
+
+function findAskWidgets(root) {
+  return qsa(SELECTORS.askWidget, root);
+}
+
+// Read a <table> as plain text for the engine (§3.2): the header row (the column-order
+// tie-break) and EVERY cell (drives the majority column-order decision in tableDir).
+// Returns { headers, allCells }. NB: headers must be ONE row — the old combined selector
+// ('thead …, tr:first-child …') also matched the FIRST BODY row (tr:first-child is true of
+// the first tr of EACH row group), so the tie-break mixed body cells into the header vote.
+function readTableShape(table) {
+  let headerCells = qsa('thead th, thead td', table);
+  if (!headerCells.length) {
+    const firstRow = qsa('tr', table)[0];
+    headerCells = firstRow ? qsa('th, td', firstRow) : [];
+  }
+  const headers = headerCells.map((c) => (c.textContent || '').trim());
+  const allCells = qsa('th, td', table).map((c) => (c.textContent || '').trim());
+  return { headers, allCells };
+}
+
+// __EXPORTS__ (everything below is stripped when inlined into the browser payload)
+const api = {
+  SELECTORS, qsa, findInputs, findMessageRoots, findTables, findCodeBlocks,
+  findLeafBlocks, findDirBlocks, findProseDirBlocks, findAskWidgets, readTableShape,
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
