@@ -2,6 +2,8 @@
 
 **[English below](#english)**
 
+[![windows-smoke](https://github.com/oshrychen/claude-rtl-kit-oshry/actions/workflows/windows-smoke.yml/badge.svg)](https://github.com/oshrychen/claude-rtl-kit-oshry/actions/workflows/windows-smoke.yml)
+
 פתרון מלא לעברית וערבית ב־Claude Desktop, ב־Mac, ב־Linux וב־Windows (בטא). אחרי ההתקנה יש לך אפליקציה בשם
 **Claude-RTL**, זהה לרגילה, עם אותו חשבון ואותן שיחות, שבה כל הטקסט מוצג בכיוון הנכון:
 
