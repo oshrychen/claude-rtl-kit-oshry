@@ -57,12 +57,31 @@ asar_unpacked_count() {
 }
 have_systemd_user() { command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1; }
 
+# Claude Desktop's Code tab (like any GUI-launched shell) has a minimal PATH that skips the
+# user's shell profile, so an installed Node (nvm, fnm, volta, ~/.local) is often invisible
+# here. Look in the usual places before declaring it missing; prepend the first hit.
+find_node() {
+  command -v node >/dev/null 2>&1 && return 0
+  local d
+  for d in "$HOME/.local/node/bin" /usr/local/bin /usr/bin /snap/bin "$HOME/.volta/bin" \
+           "$HOME/.local/share/fnm/aliases/default/bin" "$HOME/.fnm/aliases/default/bin" \
+           $(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1); do
+    if [ -x "$d/node" ] && [ -x "$d/npm" ]; then
+      export PATH="$d:$PATH"
+      log "node found outside PATH at $d — added for this run."
+      return 0
+    fi
+  done
+  return 1
+}
+
 # ---------------------------------------------------------------- 1. environment ----
 check_env() {
   [ "$(uname -s)" = "Linux" ] || die "Linux only (this is $(uname -s))."
   [ -x "$ORIG/claude-desktop" ] || die "Claude Desktop is not installed at $ORIG — install the official package first (https://claude.com/download)."
   [ -f "$ORIG/resources/app.asar" ] || die "unexpected layout: no app.asar in $ORIG/resources."
   command -v dpkg-query >/dev/null || warn "dpkg not found — version stamps will read '?'."
+  find_node || true
   if ! command -v node >/dev/null; then
     die "Node.js not found. Install it (e.g. https://nodejs.org or nvm), then re-run."
   fi
