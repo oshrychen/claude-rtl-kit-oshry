@@ -47,6 +47,12 @@ $ForeignMarkers = @('rtl-core', 'claude-rtl-styles', 'claude-rtl-banner', 'claud
 $ForeignTasks   = @('ClaudeRtlPatchWatcher', 'ClaudeRtlMsixWatcher')
 
 function Log($m){ Write-Host "kit: $m" }
+# PS 5.1 turns a native command's stderr into terminating errors when it is redirected and
+# $ErrorActionPreference is Stop; run such commands with the preference relaxed.
+function Invoke-Native([scriptblock]$sb) {
+  $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  try { & $sb } finally { $ErrorActionPreference = $prev }
+}
 function Warn($m){ Write-Host "kit: WARNING - $m" -ForegroundColor Yellow }
 function Die($m){ Write-Host "kit: ERROR - $m" -ForegroundColor Red; exit 1 }
 
@@ -125,8 +131,10 @@ function Check-Env {
   Find-Node
   $node = Get-Command node -ErrorAction SilentlyContinue
   if (-not $node) { Die "Node.js not found. Install Node 18+ from https://nodejs.org (or winget install OpenJS.NodeJS.LTS), then re-run." }
-  $major = [int](& node -p 'process.versions.node.split(".")[0]')
-  if ($major -lt 18) { Die "Node >= 18 required, have $(& node -v)." }
+  # parse "v22.1.0" in PowerShell (PS 5.1 mangles quotes passed to node -p)
+  $nodeVer = ((& node -v) | Out-String).Trim().TrimStart('v')
+  $major = 0; try { $major = [int]($nodeVer.Split('.')[0]) } catch { $major = 0 }
+  if ($major -lt 18) { Die "Node >= 18 required, have v$nodeVer." }
   if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { Die "npx missing (comes with Node)." }
   $script:NodeDir = Split-Path -Parent $node.Source
 
@@ -210,13 +218,13 @@ function Install-Source {
   Push-Location $InstallDir
   try {
     Log "building payload..."
-    & node build\build-payload.js | Out-Null
+    Invoke-Native { & node build\build-payload.js 2>&1 | Out-Null }
     if ($LASTEXITCODE -ne 0) { Die "build-payload.js failed." }
     if (-not (Select-String -Path 'dist\payload.js' -Pattern $FixMarker -SimpleMatch -Quiet)) { Die "built payload lacks the Code-tab fix." }
     Log "running the test suite..."
     # no globs: PowerShell does not expand them and only Node 21+ does; the default
     # pattern (**/*.test.js) covers engine/, dom/ and build/ on every Node version.
-    $out = & node --test 2>&1
+    $out = Invoke-Native { & node --test 2>&1 }
     $sum = ($out | Where-Object { $_ -match '^# (tests|pass|fail)|tests \d|pass \d|fail \d' }) -join ' '
     if ($LASTEXITCODE -ne 0) { $out | Out-File (Join-Path $env:TEMP 'claude-rtl-tests.log'); Die "tests failed - see $env:TEMP\claude-rtl-tests.log" }
     Log "tests OK ($sum)"
@@ -284,7 +292,8 @@ function Verify-Squirrel {
   $fix = Test-AsarContains $asar $FixMarker
   if (-not $payload) { Die "verify: payload not found in $asar." }
   if (-not $fix) { Die "verify: Code-tab fix not found in $asar." }
-  $fuse = (& npx --yes @electron/fuses read --app (Join-Path $app.FullName 'claude.exe') 2>$null | Out-String)
+  $exe = Join-Path $app.FullName 'claude.exe'
+  $fuse = Invoke-Native { (& npx --yes @electron/fuses read --app $exe 2>&1 | Out-String) }
   $line = (($fuse -split "`n") | Where-Object { $_ -match 'EnableEmbeddedAsarIntegrityValidation' }) -join ''
   Log "verified $($app.FullName) - payload present, Code-tab fix present, $($line.Trim())"
 }
