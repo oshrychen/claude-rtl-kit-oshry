@@ -34,7 +34,15 @@ jobs:
           if ($len -lt 50MB) { Get-Content $out -TotalCount 5; throw "too small to be the package" }
           Copy-Item $out (Join-Path $env:RUNNER_TEMP 'claude.zip')
           Expand-Archive -Path (Join-Path $env:RUNNER_TEMP 'claude.zip') -DestinationPath (Join-Path $env:RUNNER_TEMP 'msix') -Force
-          Get-ChildItem (Join-Path $env:RUNNER_TEMP 'msix') | Select-Object Name | Format-Table -AutoSize
+          # MSIX part names are percent-encoded (OPC): '@ant' arrives as '%40ant'. Decode every name,
+          # deepest paths first, so app.asar.unpacked\node_modules\@ant\... matches what app.asar expects.
+          $root = Join-Path $env:RUNNER_TEMP 'msix'
+          Get-ChildItem $root -Recurse -Force | Where-Object { $_.Name -match '%[0-9A-Fa-f]{2}' } |
+            Sort-Object { $_.FullName.Length } -Descending |
+            ForEach-Object { Rename-Item -LiteralPath $_.FullName -NewName ([uri]::UnescapeDataString($_.Name)) }
+          $left = @(Get-ChildItem $root -Recurse -Force | Where-Object { $_.Name -match '%[0-9A-Fa-f]{2}' }).Count
+          Write-Host "percent-encoded names left: $left"
+          Get-ChildItem $root | Select-Object Name | Format-Table -AutoSize
 
       - name: Lay the package out like a Squirrel install
         shell: pwsh
