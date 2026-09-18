@@ -211,10 +211,19 @@ function Disable-Foreign {
 # ------------------------------------------------------------------ 3. source ----
 function Install-Source {
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-  $rc = & robocopy $Src $InstallDir /MIR /XD node_modules dist .git /NFL /NDL /NJH /NJS /NP
+  $rc = & robocopy $Src $InstallDir /MIR /XD node_modules dist .git runtime /NFL /NDL /NJH /NJS /NP
   if ($LASTEXITCODE -ge 8) { Die "robocopy failed (exit $LASTEXITCODE)." }
   Copy-Item (Join-Path $Kit 'VERSIONS.md') (Join-Path $InstallDir 'KIT-VERSIONS.md') -Force -ErrorAction SilentlyContinue
   Log "source installed -> $InstallDir (upstream v0.2.21 + Code-tab fix, see VERSIONS.md)"
+  # Local copy of the asar/fuses tools under desktop\runtime\node_modules. The upstream scripts
+  # prefer it over npx when present, which (a) makes the logon watcher work offline and (b) avoids
+  # passing '@electron/asar' as a bare token through Windows PowerShell 5.1, which mangles it.
+  $rt = Join-Path $InstallDir 'desktop\runtime'
+  New-Item -ItemType Directory -Force -Path $rt | Out-Null
+  Log "installing asar/fuses tools -> $rt"
+  Invoke-Native { & npm install --prefix $rt --no-audit --no-fund --loglevel=error '@electron/asar@4' '@electron/fuses@1' 2>&1 | Out-Null }
+  if (-not (Test-Path (Join-Path $rt 'node_modules\@electron\asar\package.json'))) { Die "npm install of @electron/asar failed (network?)." }
+  if (-not (Test-Path (Join-Path $rt 'node_modules\@electron\fuses\package.json'))) { Die "npm install of @electron/fuses failed (network?)." }
   Push-Location $InstallDir
   try {
     Log "building payload..."
@@ -285,6 +294,13 @@ function Install-Watcher {
 }
 
 # ------------------------------------------------------------------ 6. verify ----
+function Resolve-KitBin($pkgRel) {
+  $pkgDir = Join-Path $InstallDir "desktop\runtime\node_modules\$pkgRel"
+  $bin = (Get-Content (Join-Path $pkgDir 'package.json') -Raw | ConvertFrom-Json).bin
+  $rel = if ($bin -is [string]) { $bin } else { ($bin.PSObject.Properties | Select-Object -First 1).Value }
+  return (Join-Path $pkgDir $rel)
+}
+
 function Verify-Squirrel {
   $app = Get-SquirrelApp
   $asar = Join-Path $app.FullName 'resources\app.asar'
@@ -293,7 +309,8 @@ function Verify-Squirrel {
   if (-not $payload) { Die "verify: payload not found in $asar." }
   if (-not $fix) { Die "verify: Code-tab fix not found in $asar." }
   $exe = Join-Path $app.FullName 'claude.exe'
-  $fuse = Invoke-Native { (& npx --yes @electron/fuses read --app $exe 2>&1 | Out-String) }
+  $fusesBin = Resolve-KitBin '@electron\fuses'
+  $fuse = Invoke-Native { (& node $fusesBin read --app $exe 2>&1 | Out-String) }
   $line = (($fuse -split "`n") | Where-Object { $_ -match 'EnableEmbeddedAsarIntegrityValidation' }) -join ''
   Log "verified $($app.FullName) - payload present, Code-tab fix present, $($line.Trim())"
 }
