@@ -16,6 +16,15 @@
 
 עובד על **Mac** ועל **Linux** (Ubuntu / Debian). ה־Claude המקורי לא משתנה, ואפשר להסיר הכל בפקודה אחת.
 
+## לפני ואחרי
+
+אותה שיחה, אותו טקסט. משמאל Claude הרגיל, מימין Claude-RTL. ההבדל בבועה של ההודעה שלי:
+בסדר המילים במשפט המעורב, במקום של סימן השאלה וסימן הקריאה, ובלינק.
+
+| Claude הרגיל | Claude-RTL |
+|---|---|
+| ![לפני: Claude הרגיל, ההודעה שלי מעורבבת](docs/images/before-original.png) | ![אחרי: Claude-RTL, ההודעה שלי מוצגת נכון](docs/images/after-claude-rtl.png) |
+
 ## התקנה: תן ל־Claude לעשות את זה
 
 1. ודא ש־Claude Desktop הרשמי מותקן ([claude.com/download](https://claude.com/download)).
@@ -107,6 +116,16 @@ which every piece of text runs in the right direction:
 
 Works on **macOS** and **Linux** (Ubuntu / Debian). The original Claude is never modified, and
 everything can be removed with one command.
+
+## Before and after
+
+Same conversation, same text. Left: regular Claude. Right: Claude-RTL. The difference is in
+my own message bubble: the word order of the mixed sentence, where the question and
+exclamation marks land, and the link.
+
+| Regular Claude | Claude-RTL |
+|---|---|
+| ![Before: regular Claude, my message is scrambled](docs/images/before-original.png) | ![After: Claude-RTL, my message renders correctly](docs/images/after-claude-rtl.png) |
 
 ## Install: let Claude do it
 
