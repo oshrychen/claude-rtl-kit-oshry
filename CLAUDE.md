@@ -78,7 +78,12 @@ time (shared user-data dir) — quit one before opening the other.
 
 ### After a Claude update (macOS)
 
-The watcher rebuilds automatically (log: `~/Library/Logs/claude-rtl-watch.log`). If RTL is
+How the loop works (observed live on 2026-09-18, 2.2553.0 → 2.2553.1): the running Claude-RTL
+downloads the update itself; on quit, Squirrel's ShipIt installs it into `/Applications/Claude.app`
+(the original — its Anthropic signature stays intact), the LaunchAgent sees the original change,
+waits for the swap to settle, rebuilds `~/Applications/Claude-RTL.app` from the new original
+(~30 s) and posts a notification. The user only reopens Claude-RTL. Nothing manual is needed.
+The watcher log is `~/Library/Logs/claude-rtl-watch.log`. If RTL is
 gone after an update, read that log first, then run `bash mac/install.sh` again.
 
 ### Removal (macOS)

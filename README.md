@@ -10,7 +10,9 @@
 - **ההודעות שלך**: מה שאתה כותב מוצג נכון, כולל משפטים מעורבים עברית־אנגלית, לינקים וסימני פיסוק,
   וגם תיבת הכתיבה עצמה.
 - **טאב Code** (Claude Code בתוך האפליקציה): גם התשובות וגם ההודעות שלך, לא רק הצ׳אט הרגיל.
-- **מתעדכן לבד**: אחרי כל עדכון של Claude העותק נבנה מחדש ברקע.
+- **מתעדכן לבד, בלי שתשים לב**: Claude-RTL מוריד את העדכונים של Claude כרגיל. העדכון מותקן
+  ב־Claude המקורי, ומשימת הרקע בונה מיד את Claude-RTL מחדש מהגרסה החדשה ושולחת התראה. אתה רק
+  פותח אותו שוב. נבדק בפועל עם העדכון 2.2553.0 → 2.2553.1.
 
 עובד על **Mac** ועל **Linux** (Ubuntu / Debian). ה־Claude המקורי לא משתנה, ואפשר להסיר הכל בפקודה אחת.
 
@@ -29,7 +31,8 @@
 4. Claude יבדוק מה חסר במחשב (ויגיד לך איך להשלים), ינקה התקנה קודמת אם יש, יתקין, ויסביר מה לבדוק.
 5. בסוף סוגרים את Claude הרגיל ופותחים את **Claude-RTL**: ב־Mac מ־`~/Applications`, ב־Linux מתפריט האפליקציות.
 
-זהו. מכאן והלאה, בכל פעם ש־Claude מתעדכן, Claude-RTL נבנה מחדש לבד ברקע.
+זהו. מכאן והלאה לא צריך לעקוב אחרי עדכונים: כשיש עדכון, סוגרים את Claude-RTL כרגיל, העדכון
+נכנס למקורי, Claude-RTL נבנה מחדש לבד תוך כחצי דקה, ומגיעה התראה שאפשר לפתוח.
 
 <details>
 <summary>מעדיפים טרמינל? התקנה ידנית</summary>
@@ -97,7 +100,10 @@ which every piece of text runs in the right direction:
   English, links and punctuation, and the input box itself.
 - **The Code tab** (Claude Code inside the app): both the answers and your messages, not
   only the regular chat.
-- **Keeps itself current**: after every Claude update the copy is rebuilt in the background.
+- **Keeps itself current, without you noticing**: Claude-RTL downloads Claude's updates as
+  usual. The update lands in the original Claude, and the background task immediately rebuilds
+  Claude-RTL from the new version and sends a notification. You just reopen it. Verified live
+  on the 2.2553.0 → 2.2553.1 update.
 
 Works on **macOS** and **Linux** (Ubuntu / Debian). The original Claude is never modified, and
 everything can be removed with one command.
@@ -119,7 +125,9 @@ everything can be removed with one command.
 5. Quit the regular Claude and open **Claude-RTL**: on macOS from `~/Applications`, on Linux
    from the app menu.
 
-That's it. From now on, whenever Claude updates itself, Claude-RTL is rebuilt in the background.
+That's it. From now on you don't need to watch for updates: when one arrives, quit Claude-RTL
+as usual, the update goes into the original, Claude-RTL is rebuilt on its own within about
+half a minute, and a notification tells you it is ready to reopen.
 
 <details>
 <summary>Prefer a terminal? Manual install</summary>
